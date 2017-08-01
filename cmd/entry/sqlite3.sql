@@ -1,0 +1,2 @@
+CREATE TABLE "accounts" ("mobile" varchar(255),"no" varchar(255),"reg_time" datetime,"last_login_time" datetime,"id" varchar(255),"status" integer,"ip" varchar(255),"password" varchar(255) , avatar text, PRIMARY KEY ("id"));
+CREATE TABLE "blogs" ("id" varchar(255),"title" varchar(255),"content" varchar(255),"user_id" varchar(255),"timestamp" datetime,"status" integer,"description" varchar(255),"tag" varchar(255) , PRIMARY KEY ("id"));
