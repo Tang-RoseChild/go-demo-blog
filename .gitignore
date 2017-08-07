@@ -1,1 +1,7 @@
 .vscode
+vendor
+.DS_Store
+_workspace
+blog_entry_tar*
+*.js
+*.gz

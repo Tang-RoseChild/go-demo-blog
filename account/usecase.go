@@ -1,31 +1,23 @@
 package account
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/Tang-RoseChild/go-demo-blog/account/service"
+	"github.com/Tang-RoseChild/go-demo-blog/account/store"
 	"github.com/Tang-RoseChild/go-demo-blog/utils/http"
 	"github.com/Tang-RoseChild/go-demo-blog/utils/token"
 )
 
-var defaultService = service.New(service.Options{})
+var defaultService = accountstore.NewService()
 
 func GinLoad(rootGroup *gin.RouterGroup) {
 	accountGroup := rootGroup.Group("/account")
 	accountGroup.POST("/login", httpToGin(LoginHandler))
-	// accountGroup.POST("/register", httpToGin(RegisterHandler))
+	accountGroup.POST("/register", httpToGin(RegisterHandler))
 	// accountGroup.GET("/issue_token", httpToGin(IssueTokenHandler))
-}
-
-func Load() {
-
-	http.HandleFunc("/api/login", httputils.IPLimit(10, httputils.LimitReq(5, LoginHandler)))
-	http.HandleFunc("/api/register", RegisterHandler)
-	http.HandleFunc("/api/issue_token", IssueTokenHandler)
 }
 
 func GinHandler(c *gin.Context) {
@@ -46,22 +38,28 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		Password string
 	}
 	httputils.MustUnmarshalReq(r, &req)
-	req.No = "86"
+	if req.No == "" {
+		req.No = "86"
+	}
+
 	account, err := defaultService.GetAccountByMobile(req.No, req.Mobile)
 	if err != nil {
-		http.Error(w, "not found", http.StatusBadRequest)
-		return
+		if err.NotFound() {
+			http.Error(w, "not found", http.StatusBadRequest)
+			return
+		}
+		panic(err)
 	}
-	pwd, ok := account.(service.Passworder)
-	if !ok {
-		panic("not implement password")
-	}
-	if pwd.GetPassword() != req.Password {
+
+	if !account.Validate(req.Password) {
 		http.Error(w, "password wrong", http.StatusForbidden)
 		return
 	}
 
-	w.Header().Set("Authorization", tokenutils.GenToken(account.GetID()))
+	claim := accountstore.NewClaim()
+	claim.Id = account.ID
+	w.Header().Set("Authorization", claim.GenerateToken(tokenutils.GetSecret()))
+
 	httputils.MustMarshalResp(w, map[string]interface{}{
 		"account": account,
 		"success": true,
@@ -74,28 +72,21 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		Mobile   string
 		Password string
 	}
-
 	httputils.MustUnmarshalReq(r, &req)
-	fmt.Println("req in reg ", req)
+
 	if _, err := defaultService.GetAccountByMobile(req.No, req.Mobile); err == nil {
 		http.Error(w, "mobile exists", http.StatusBadRequest)
 		return
 	}
 
 	ip := strings.Split(r.RemoteAddr, ":")[0]
-	account, err := defaultService.CreateAccount(req.No, req.Mobile, req.Password, ip)
-	if err != nil {
-		http.Error(w, "internel error", http.StatusInternalServerError)
-		return
-	}
-
-	token := tokenutils.GenToken(account.GetID())
+	account := defaultService.CreateAccount(&accountstore.CreateAccountReq{req.No, req.Mobile, req.Password, ip})
+	token := tokenutils.GenToken(account.ID)
 	w.Header().Set("Authorization", token)
 	httputils.MustMarshalResp(w, account)
 }
 
 func IssueTokenHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("issue totken")
 	hanlder := tokenutils.IssueToken(nil)
 	hanlder(w, r)
 }

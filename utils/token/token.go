@@ -142,3 +142,13 @@ func (c *StandClaim) Validate() bool {
 	}
 	return true
 }
+
+var initSecret []byte
+
+func SetSecret(secret string) {
+	initSecret = []byte(secret)
+}
+
+func GetSecret() []byte {
+	return initSecret
+}

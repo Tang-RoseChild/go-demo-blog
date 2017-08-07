@@ -7,6 +7,7 @@ import (
 
 	"github.com/Tang-RoseChild/go-demo-blog/blog/store"
 	"github.com/Tang-RoseChild/go-demo-blog/utils/http"
+	"github.com/Tang-Rosechild/go-demo-blog/middleware"
 )
 
 func Upload(w http.ResponseWriter, r *http.Request) {
@@ -87,10 +88,44 @@ func Get(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func ListByTag(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Tag string
+		// 	Limit int
+		// 	From  int
+	}
+	httputils.MustUnmarshalReq(r, &req)
+	// list, hasMore, err := store.DefaultService.GetBlogListByTag(req.Tag)
+	list := store.DefaultService.GetBlogsByTag(req.Tag)
+	httputils.MustMarshalResp(w, map[string]interface{}{
+		"blogs": list,
+		// "hasMore": hasMore,
+		// "errro":   err,
+	})
+}
+
+func ListBySource(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Source string
+		// 	Limit int
+		// 	From  int
+	}
+	httputils.MustUnmarshalReq(r, &req)
+	// list, hasMore, err := store.DefaultService.GetBlogListByTag(req.Tag)
+	list := store.DefaultService.GetBlogsBySource(req.Source)
+	httputils.MustMarshalResp(w, map[string]interface{}{
+		"blogs": list,
+		// "hasMore": hasMore,
+		// "errro":   err,
+	})
+}
 func GinLoad(rootGroup *gin.RouterGroup) {
 	g := rootGroup.Group("/blog")
 	g.POST("/", httputils.ToGinHandler(Get))
-	g.POST("/upload", httputils.ToGinHandler(Upload))
-	g.POST("/update", httputils.ToGinHandler(Update))
+	g.POST("/upload", middleware.NeedLogin(), httputils.ToGinHandler(Upload))
+	g.POST("/update", middleware.NeedLogin(), httputils.ToGinHandler(Update))
 	g.POST("/list", httputils.ToGinHandler(List))
+	g.POST("/list/tag", httputils.ToGinHandler(ListByTag))
+	g.POST("/list/source", httputils.ToGinHandler(ListBySource))
+
 }
