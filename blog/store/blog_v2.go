@@ -2,6 +2,7 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/Tang-RoseChild/go-demo-blog/utils/db"
@@ -14,6 +15,11 @@ var (
 	NotFoundErr = errors.New("not found")
 )
 
+const (
+	StatusSaved    = 1
+	StausPublished = 2
+)
+
 type Blog_V2 struct {
 	ID          string    `json:"id"`
 	Title       string    `json:"title"`
@@ -24,6 +30,7 @@ type Blog_V2 struct {
 	Description string    `json:"description"`
 	Tag         string    `json:"tag"`
 	Source      string    `json:"source"`
+	Points      string    `json:"points"`
 }
 
 func (b Blog_V2) TableName() string {
@@ -50,7 +57,7 @@ type ListReq_V2 struct {
 	UserID string
 }
 
-func (s *Service) GetBlogList(req *ListReq) ([]*Blog_V2, bool, error) {
+func (s *Service) GetBlogList(req *ListReq_V2) ([]*Blog_V2, bool, error) {
 	var blogs []*Blog_V2
 	// if err := dbutils.DB.Offset(req.From).Limit(req.Limit).Order("timestamp desc").Find(&blogs, "user_id=?", req.UserID).Error; err != nil {
 	if err := dbutils.DB.Order("timestamp desc").Find(&blogs, "user_id=?", req.UserID).Error; err != nil {
@@ -75,9 +82,10 @@ type CreateReq_V2 struct {
 	Description string
 	Status      int
 	ID          string
+	Points      string
 }
 
-func (s *Service) Create(req *CreateReq) *Blog_V2 {
+func (s *Service) Create(req *CreateReq_V2) *Blog_V2 {
 	blog := &Blog_V2{
 		ID:          idutils.DefaultGenerator.GetID(),
 		Title:       req.Title,
@@ -88,6 +96,7 @@ func (s *Service) Create(req *CreateReq) *Blog_V2 {
 		Tag:         req.Tag,
 		Status:      req.Status,
 		Source:      req.Source,
+		Points:      req.Points,
 	}
 
 	if err := dbutils.DB.Create(blog).Error; err != nil {
@@ -105,9 +114,12 @@ type UpdateReq_V2 struct {
 	ID          string
 	Description string
 	Status      int
+	Points      string
 }
 
 func (s *Service) Update(req *UpdateReq_V2) (*Blog_V2, error) {
+	// fmt.Printf("req.points %#v, req in upate \n \n \n \n \n \n %#v \n \n ", req.Points, req)
+	fmt.Println("req.Points != '' \n \n >>> \n", req.Points != "")
 	blog := &Blog_V2{}
 	switch {
 	case req.Title != "":
@@ -127,11 +139,17 @@ func (s *Service) Update(req *UpdateReq_V2) (*Blog_V2, error) {
 		fallthrough
 	case req.Status != 0:
 		blog.Status = req.Status
+		fallthrough
+	case req.Points != "":
+		blog.Points = req.Points
+		fallthrough
+	default:
+		// do nothing
 	}
 
 	if err := dbutils.DB.Table(blog.TableName()).Where("id=?", req.ID).UpdateColumns(blog).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, NotFound
+			return nil, NotFoundErr
 		}
 		panic(err)
 	}
@@ -141,7 +159,7 @@ func (s *Service) Update(req *UpdateReq_V2) (*Blog_V2, error) {
 
 func (s *Service) GetBlogsByTag(tags ...string) []*Blog_V2 {
 	var blogs []*Blog_V2
-	dbutils.DB.LogMode(true)
+	// dbutils.DB.LogMode(true)
 	dbutils.DB.Table(Blog_V2{}.TableName()).Find(&blogs, "tag in (?)", tags)
 	return blogs
 }
