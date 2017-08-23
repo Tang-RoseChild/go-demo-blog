@@ -55,22 +55,18 @@ type ListReq_V2 struct {
 	Limit  int
 	From   int
 	UserID string
+	Tag    string
+	Source string
 }
 
-func (s *Service) GetBlogList(req *ListReq_V2) ([]*Blog_V2, bool, error) {
+func (s *Service) GetBlogList(req *ListReq_V2) ([]*Blog_V2, int) {
 	var blogs []*Blog_V2
-	// if err := dbutils.DB.Offset(req.From).Limit(req.Limit).Order("timestamp desc").Find(&blogs, "user_id=?", req.UserID).Error; err != nil {
-	if err := dbutils.DB.Order("timestamp desc").Find(&blogs, "user_id=?", req.UserID).Error; err != nil {
+	if err := dbutils.DB.Order("timestamp desc").Offset(req.From).Limit(req.Limit).Find(&blogs, "user_id=?", req.UserID).Error; err != nil {
 		panic(err)
 	}
-
-	// var count int
-	// dbutils.DB.Table(pgBlog{}.TableName()).Count(&count)
-	var hasMore = false
-	// if req.Limit+req.From < count {
-	// 	hasMore = true
-	// }
-	return blogs, hasMore, nil
+	var count int
+	dbutils.DB.Table(Blog_V2{}.TableName()).Count(&count)
+	return blogs, count
 }
 
 type CreateReq_V2 struct {
@@ -157,17 +153,20 @@ func (s *Service) Update(req *UpdateReq_V2) (*Blog_V2, error) {
 	return s.GetBlog(req.ID)
 }
 
-func (s *Service) GetBlogsByTag(tags ...string) []*Blog_V2 {
+func (s *Service) GetBlogsByTag(req *ListReq_V2) ([]*Blog_V2, int) {
 	var blogs []*Blog_V2
-	// dbutils.DB.LogMode(true)
-	dbutils.DB.Table(Blog_V2{}.TableName()).Find(&blogs, "tag in (?)", tags)
-	return blogs
+	dbutils.DB.Table(Blog_V2{}.TableName()).Offset(req.From).Limit(req.Limit).Find(&blogs, "tag in (?)", req.Tag)
+	var count int
+	dbutils.DB.Table(Blog_V2{}.TableName()).Count(&count)
+	return blogs, count
 }
 
-func (s *Service) GetBlogsBySource(source ...string) []*Blog_V2 {
+func (s *Service) GetBlogsBySource(req *ListReq_V2) ([]*Blog_V2, int) {
 	var blogs []*Blog_V2
-	dbutils.DB.Table(Blog_V2{}.TableName()).Find(&blogs, "source in (?)", source)
-	return blogs
+	dbutils.DB.Table(Blog_V2{}.TableName()).Offset(req.From).Limit(req.Limit).Find(&blogs, "source in (?)", req.Source)
+	var count int
+	dbutils.DB.Table(Blog_V2{}.TableName()).Count(&count)
+	return blogs, count
 }
 
 var DefaultService = &Service{}

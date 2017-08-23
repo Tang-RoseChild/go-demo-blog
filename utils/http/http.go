@@ -1,10 +1,12 @@
 package httputils
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,13 +23,29 @@ func MustUnmarshalReq(r *http.Request, out interface{}) {
 	}
 }
 
-func MustMarshalResp(w http.ResponseWriter, resp interface{}) {
+func MustMarshalResp(r *http.Request, w http.ResponseWriter, resp interface{}) {
+	w.Header().Set("Content-Type", "application/json")
 	data, err := json.Marshal(resp)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("string data")
-	fmt.Fprint(w, string(data))
+
+	canCompress := strings.Contains(r.Header.Get("Accept-Encoding"), "gzip")
+	if !canCompress {
+		fmt.Fprint(w, string(data))
+		return
+	}
+
+	w.Header().Set("Content-Encoding", "gzip")
+	gw, err := gzip.NewWriterLevel(w, gzip.BestCompression)
+	if err != nil {
+		panic(err)
+	}
+	n, err := gw.Write(data)
+	if n != len(data) || err != nil {
+		panic("write all data error")
+	}
+	gw.Flush()
 }
 
 func ToGinHandler(h http.HandlerFunc) gin.HandlerFunc {

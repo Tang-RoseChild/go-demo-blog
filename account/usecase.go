@@ -60,7 +60,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	claim.Id = account.ID
 	w.Header().Set("Authorization", claim.GenerateToken(tokenutils.GetSecret()))
 
-	httputils.MustMarshalResp(w, map[string]interface{}{
+	httputils.MustMarshalResp(r, w, map[string]interface{}{
 		"account": account,
 		"success": true,
 	})
@@ -83,7 +83,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	account := defaultService.CreateAccount(&accountstore.CreateAccountReq{req.No, req.Mobile, req.Password, ip})
 	token := tokenutils.GenToken(account.ID)
 	w.Header().Set("Authorization", token)
-	httputils.MustMarshalResp(w, account)
+	httputils.MustMarshalResp(r, w, account)
 }
 
 func IssueTokenHandler(w http.ResponseWriter, r *http.Request) {

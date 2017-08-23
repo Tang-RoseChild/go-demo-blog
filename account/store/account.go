@@ -30,6 +30,7 @@ func (e *Error) Error() string {
 	return str
 }
 
+// 这样不适合interface的模式，相当于把interface的实现必须和这个包绑定
 type CreateAccountReq struct {
 	No       string
 	Mobile   string

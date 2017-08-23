@@ -7,6 +7,7 @@ import (
 
 	"github.com/Tang-RoseChild/go-demo-blog/blog/store"
 	"github.com/Tang-RoseChild/go-demo-blog/utils/http"
+	"github.com/Tang-RoseChild/go-demo-blog/utils/token"
 	"github.com/Tang-Rosechild/go-demo-blog/middleware"
 )
 
@@ -32,7 +33,7 @@ func Upload(w http.ResponseWriter, r *http.Request) {
 		blog = store.DefaultService.Create(&req)
 	}
 
-	httputils.MustMarshalResp(w, map[string]interface{}{"blog": blog, "err": err})
+	httputils.MustMarshalResp(r, w, map[string]interface{}{"blog": blog, "err": err})
 }
 
 func Update(w http.ResponseWriter, r *http.Request) {
@@ -55,79 +56,83 @@ func Update(w http.ResponseWriter, r *http.Request) {
 		blog, err = store.DefaultService.Update(&req)
 	}
 
-	httputils.MustMarshalResp(w, map[string]interface{}{"blog": blog, "err": err})
+	httputils.MustMarshalResp(r, w, map[string]interface{}{"blog": blog, "err": err})
 }
 
-func List(w http.ResponseWriter, r *http.Request) {
-	// var req struct {
-	// 	Limit int
-	// 	From  int
-	// }
-	// httputils.MustUnmarshalReq(r, &req)
-
-	list, hasMore, err := store.DefaultService.GetBlogList(&store.ListReq_V2{0, 0, "admin"})
-	httputils.MustMarshalResp(w, map[string]interface{}{
+func List(c *gin.Context) {
+	pageClaim := c.MustGet(middleware.PaginationTokenKey).(*tokenutils.Pagination)
+	list, total := store.DefaultService.GetBlogList(&store.ListReq_V2{Limit: pageClaim.Limit, From: pageClaim.From, UserID: "admin"})
+	hasMore := pageClaim.From+pageClaim.Limit < total
+	if hasMore {
+		pageClaim.From += pageClaim.Limit
+	}
+	c.Writer.Header().Set("Authorization", pageClaim.GenerateToken(tokenutils.GetSecret()))
+	httputils.MustMarshalResp(c.Request, c.Writer, map[string]interface{}{
 		"blogs":   list,
 		"hasMore": hasMore,
-		"errro":   err,
 	})
 }
 
-func Get(w http.ResponseWriter, r *http.Request) {
+func Get(c *gin.Context) {
 	var req struct {
 		ID string
 	}
-	httputils.MustUnmarshalReq(r, &req)
+	httputils.MustUnmarshalReq(c.Request, &req)
 	blog, err := store.DefaultService.GetBlog(req.ID)
 	// commentsResp := commentStore.DefaultService.ListComments(&commentStore.ListCommentsReq{BlogID: req.ID})
 	// if err == nil {
 	// 	err = commentsResp.Err
 	// }
-	httputils.MustMarshalResp(w, map[string]interface{}{
+	httputils.MustMarshalResp(c.Request, c.Writer, map[string]interface{}{
 		"blog":  blog,
 		"error": err,
 		// "comments": commentsResp.Comments,
 	})
 }
+func ListByTag(c *gin.Context) {
+	var req store.ListReq_V2
+	httputils.MustUnmarshalReq(c.Request, &req)
 
-func ListByTag(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Tag string
-		// 	Limit int
-		// 	From  int
+	pageClaim := c.MustGet(middleware.PaginationTokenKey).(*tokenutils.Pagination)
+	req.Limit = pageClaim.Limit
+	req.From = pageClaim.From
+	list, total := store.DefaultService.GetBlogsByTag(&req)
+	hasMore := pageClaim.From+pageClaim.Limit < total
+	if hasMore {
+		pageClaim.From += pageClaim.Limit
 	}
-	httputils.MustUnmarshalReq(r, &req)
-	// list, hasMore, err := store.DefaultService.GetBlogListByTag(req.Tag)
-	list := store.DefaultService.GetBlogsByTag(req.Tag)
-	httputils.MustMarshalResp(w, map[string]interface{}{
-		"blogs": list,
-		// "hasMore": hasMore,
-		// "errro":   err,
+	c.Writer.Header().Set("Authorization", pageClaim.GenerateToken(tokenutils.GetSecret()))
+	httputils.MustMarshalResp(c.Request, c.Writer, map[string]interface{}{
+		"blogs":   list,
+		"hasMore": hasMore,
 	})
 }
 
-func ListBySource(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Source string
-		// 	Limit int
-		// 	From  int
+func ListBySource(c *gin.Context) {
+	var req store.ListReq_V2
+	httputils.MustUnmarshalReq(c.Request, &req)
+	pageClaim := c.MustGet(middleware.PaginationTokenKey).(*tokenutils.Pagination)
+	req.Limit = pageClaim.Limit
+	req.From = pageClaim.From
+	list, total := store.DefaultService.GetBlogsBySource(&req)
+	hasMore := pageClaim.From+pageClaim.Limit < total
+	if hasMore {
+		pageClaim.From += pageClaim.Limit
 	}
-	httputils.MustUnmarshalReq(r, &req)
-	// list, hasMore, err := store.DefaultService.GetBlogListByTag(req.Tag)
-	list := store.DefaultService.GetBlogsBySource(req.Source)
-	httputils.MustMarshalResp(w, map[string]interface{}{
-		"blogs": list,
-		// "hasMore": hasMore,
+	c.Writer.Header().Set("Authorization", pageClaim.GenerateToken(tokenutils.GetSecret()))
+	httputils.MustMarshalResp(c.Request, c.Writer, map[string]interface{}{
+		"blogs":   list,
+		"hasMore": hasMore,
 		// "errro":   err,
 	})
 }
 func GinLoad(rootGroup *gin.RouterGroup) {
 	g := rootGroup.Group("/blog")
-	g.POST("/", httputils.ToGinHandler(Get))
+	g.POST("/", Get)
 	g.POST("/upload", middleware.NeedLogin(), httputils.ToGinHandler(Upload))
 	g.POST("/update", middleware.NeedLogin(), httputils.ToGinHandler(Update))
-	g.POST("/list", httputils.ToGinHandler(List))
-	g.POST("/list/tag", httputils.ToGinHandler(ListByTag))
-	g.POST("/list/source", httputils.ToGinHandler(ListBySource))
+	g.POST("/list", middleware.PaginationToken("list", 10), List)
+	g.POST("/list/tag", middleware.PaginationToken("list", 10), ListByTag)
+	g.POST("/list/source", middleware.PaginationToken("list", 10), ListBySource)
 
 }

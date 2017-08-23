@@ -31,7 +31,7 @@ func CreateCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	httputils.MustUnmarshalReq(r, &req)
 	comment := commentStore.DefaultService.Create(r.Context().Value("uid").(string), req.BlogID, req.Content)
-	httputils.MustMarshalResp(w, comment)
+	httputils.MustMarshalResp(r, w, comment)
 }
 
 func ListCommentsByBlogHandler(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +40,7 @@ func ListCommentsByBlogHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	httputils.MustUnmarshalReq(r, &req)
 	resp := commentStore.DefaultService.ListComments(&commentStore.ListCommentsReq{BlogID: req.BlogID})
-	httputils.MustMarshalResp(w, resp)
+	httputils.MustMarshalResp(r, w, resp)
 }
 
 func ListCommentsByUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -49,5 +49,5 @@ func ListCommentsByUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	httputils.MustUnmarshalReq(r, &req)
 	resp := commentStore.DefaultService.ListComments(&commentStore.ListCommentsReq{UserID: req.UserID})
-	httputils.MustMarshalResp(w, resp)
+	httputils.MustMarshalResp(r, w, resp)
 }

@@ -11,7 +11,8 @@ import (
 )
 
 const (
-	defaultLimit = 15
+	defaultLimit       = 15
+	PaginationTokenKey = "paginationClaim"
 )
 
 func getToken(request *http.Request) string {
@@ -40,7 +41,7 @@ func PaginationToken(scope string, limit int) gin.HandlerFunc {
 		token := getToken(c.Request)
 		if token == "" {
 			pagination := tokenutils.NewPagination(scope, 0, defaultLimit)
-			c.Set("paginationClaim", pagination)
+			c.Set(PaginationTokenKey, pagination)
 			return
 		} else {
 			pagination := &tokenutils.Pagination{}
@@ -48,7 +49,7 @@ func PaginationToken(scope string, limit int) gin.HandlerFunc {
 				c.AbortWithError(http.StatusBadRequest, err)
 				return
 			}
-			c.Set("paginationClaim", pagination)
+			c.Set(PaginationTokenKey, pagination)
 		}
 	}
 }
