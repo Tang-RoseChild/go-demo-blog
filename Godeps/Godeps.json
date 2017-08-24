@@ -7,6 +7,10 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/NYTimes/gziphandler",
+			"Rev": "967539e5e271a2bc9b3dcb1285078a1b1df105ae"
+		},
+		{
 			"ImportPath": "github.com/Tang-Rosechild/go-demo-blog/middleware",
 			"Rev": "8ac051193849cbf2bb3f15b851f47163a032945a"
 		},
